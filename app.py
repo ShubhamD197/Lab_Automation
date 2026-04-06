@@ -251,130 +251,134 @@ DASHBOARD = """
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OLAS — Futuristic Dashboard</title>
+<title>OLAS Dashboard</title>
 <meta http-equiv="refresh" content="60">
 
 <style>
+
+/* ---------- GLOBAL ---------- */
 body{
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background:#0b1a24;
   margin:0;
-  font-family: 'Segoe UI', sans-serif;
-  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
-  color:#fff;
+  padding:20px;
+  color:#e6f1f7;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Glass Container */
 .container{
   max-width:1100px;
   margin:auto;
-  padding:20px;
 }
 
-/* Header */
+/* ---------- HEADER ---------- */
 .header{
   display:flex;
   justify-content:space-between;
   align-items:center;
-  margin-bottom:20px;
+  margin-bottom:25px;
 }
 
 .title{
-  font-size:32px;
+  font-size:30px;
   font-weight:700;
-  background: linear-gradient(90deg,#00f2ff,#00ff9d);
-  -webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;
+  color:#00d4ff;
+  letter-spacing:1px;
 }
 
 .status{
+  font-size:13px;
   padding:6px 14px;
   border-radius:20px;
-  font-size:13px;
-  backdrop-filter: blur(10px);
+  font-weight:500;
 }
 
 .online{
-  background:rgba(0,255,150,0.15);
-  border:1px solid rgba(0,255,150,0.4);
+  background:#0f3d2e;
   color:#00ffb3;
+  border:1px solid #00ffb3;
 }
 
 .offline{
-  background:rgba(255,0,0,0.15);
-  border:1px solid rgba(255,0,0,0.4);
+  background:#3d0f0f;
   color:#ff4d4d;
+  border:1px solid #ff4d4d;
 }
 
-/* Glass Card */
+/* ---------- CARDS ---------- */
 .card{
-  background:rgba(255,255,255,0.05);
-  backdrop-filter: blur(15px);
-  border:1px solid rgba(255,255,255,0.1);
-  border-radius:16px;
-  padding:20px;
+  background:#122836;
+  border-radius:12px;
+  padding:18px;
   margin-bottom:20px;
-  box-shadow:0 0 25px rgba(0,255,255,0.05);
+  border:1px solid #1e3a4a;
+  box-shadow:0 0 10px rgba(0,212,255,0.08);
 }
 
-/* Grid */
+.card h3{
+  margin-top:0;
+  color:#00d4ff;
+}
+
+/* ---------- GRID ---------- */
 .grid{
   display:grid;
   grid-template-columns:repeat(2,1fr);
   gap:15px;
 }
 
-/* Switch Card */
+/* ---------- SWITCH ---------- */
 .switch{
-  padding:15px;
-  border-radius:12px;
+  padding:14px;
+  border-radius:10px;
   text-align:center;
-  transition:0.3s;
+  font-weight:600;
+  transition:0.2s;
 }
 
 .on{
-  background:rgba(0,255,200,0.1);
-  border:1px solid rgba(0,255,200,0.4);
-  box-shadow:0 0 10px rgba(0,255,200,0.4);
+  background:#0f3a45;
   color:#00ffd5;
+  border:1px solid #00ffd5;
 }
 
 .off{
-  background:rgba(255,255,255,0.05);
-  color:#aaa;
+  background:#1a2e3a;
+  color:#6c8a99;
 }
 
-/* Progress Bar */
+/* ---------- PROGRESS ---------- */
 .bar{
   height:6px;
-  background:rgba(255,255,255,0.1);
+  background:#1f3c4d;
   border-radius:5px;
   margin-top:10px;
 }
 
 .fill{
   height:6px;
-  background:linear-gradient(90deg,#00f2ff,#00ff9d);
+  background:#00d4ff;
   border-radius:5px;
 }
 
-/* Buttons */
+/* ---------- BUTTONS ---------- */
 .btn{
-  padding:10px 18px;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-  background:linear-gradient(90deg,#00f2ff,#00ff9d);
-  color:#000;
-  font-weight:bold;
-  margin-right:10px;
+  padding:10px 16px;
+  border-radius:6px;
+  background:#00d4ff;
+  color:#001018;
   text-decoration:none;
+  font-size:14px;
+  font-weight:600;
+  margin-right:10px;
   display:inline-block;
 }
 
 .btn:hover{
-  opacity:0.8;
+  background:#00aacc;
 }
 
-/* Table */
+/* ---------- TABLE ---------- */
 .table{
   width:100%;
   border-collapse:collapse;
@@ -383,25 +387,34 @@ body{
 .table th,.table td{
   padding:10px;
   text-align:center;
-  border-bottom:1px solid rgba(255,255,255,0.1);
+  border-bottom:1px solid #1f3c4d;
+}
+
+.table th{
+  color:#00d4ff;
 }
 
 .green{color:#00ffb3;}
 .red{color:#ff4d4d;}
 
+/* ---------- MOBILE ---------- */
 @media(max-width:600px){
-  .grid{grid-template-columns:1fr;}
+  .grid{
+    grid-template-columns:1fr;
+  }
 }
+
 </style>
 </head>
 
 <body>
 <div class="container">
 
+<!-- HEADER -->
 <div class="header">
-  <div class="title">OLAS ⚡</div>
+  <div class="title">⚡ OLAS Dashboard</div>
   {% if logs %}
-    <div class="status online">ONLINE</div>
+    <div class="status online">SYSTEM ONLINE</div>
   {% else %}
     <div class="status offline">NO DATA</div>
   {% endif %}
@@ -410,28 +423,31 @@ body{
 {% if logs %}
 {% set last = logs[0] %}
 
+<!-- SWITCH STATUS -->
 <div class="card">
-  <h3>⚡ Switch Control</h3>
+  <h3>🔌 Switch Status</h3>
   <div class="grid">
     {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
     {% set on = last.predictions[sw].state %}
     {% set pct = (last.predictions[sw].confidence * 100)|int %}
     <div class="switch {{ 'on' if on else 'off' }}">
-      <h4>{{ sw }}</h4>
-      {{ 'ON' if on else 'OFF' }}
+      <div>{{ sw }}</div>
+      <div style="margin-top:5px;">{{ 'ON' if on else 'OFF' }}</div>
       <div class="bar">
         <div class="fill" style="width:{{ pct }}%"></div>
       </div>
+      <div style="font-size:12px;margin-top:5px;">{{ pct }}%</div>
     </div>
     {% endfor %}
   </div>
 </div>
 
+<!-- SYSTEM INFO -->
 <div class="card">
-  <h3>🧠 System Info</h3>
+  <h3> System Info</h3>
   <p><b>Session:</b> {{ last.session }}</p>
   <p><b>Last Run:</b> {{ last.timestamp }}</p>
-  <p><b>API:</b>
+  <p><b>API Status:</b>
     {% if last.api_status == 'ok' %}
       <span class="green">Connected</span>
     {% else %}
@@ -442,14 +458,16 @@ body{
 
 {% endif %}
 
+<!-- ACTIONS -->
 <div class="card">
-  <h3>🚀 Actions</h3>
-  <a href="/trigger" class="btn">Run</a>
-  <a href="/status" class="btn">Status</a>
+  <h3> Actions</h3>
+  <a href="/trigger" class="btn">Run Prediction</a>
+  <a href="/status" class="btn">View JSON</a>
 </div>
 
+<!-- LOGS -->
 <div class="card">
-  <h3>📊 Logs</h3>
+  <h3> Logs</h3>
   <table class="table">
     <tr>
       <th>Time</th>

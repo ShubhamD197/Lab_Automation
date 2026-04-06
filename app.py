@@ -173,13 +173,17 @@ def predict_and_control(source: str = "scheduler"):
         }
 
     # Build RainMaker payload — "Power" matches write_callback in ESP32 firmware
-    payload = {
+    payload = [
+    {
         "node_id": NODE_ID,
         "payload": {
-            sw: {"Power": predictions[sw]["state"]}
+            sw: {
+                "output": predictions[sw]["state"]
+            }
             for sw in SWITCHES
         }
     }
+]
 
     api_status = "not_sent"
 
@@ -245,354 +249,229 @@ DASHBOARD = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OLAS — Control Dashboard 2026</title>
-  <meta http-equiv="refresh" content="60">
-  <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-    body{background:#03070F;font-family:'Courier New',Courier,monospace;color:#00C8FF;min-height:100vh;padding:16px;}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OLAS — Futuristic Dashboard</title>
+<meta http-equiv="refresh" content="60">
 
-    @keyframes pulse-ring  {0%,100%{opacity:.7;}50%{opacity:.1;}}
-    @keyframes pulse-ring2 {0%,100%{opacity:.3;}50%{opacity:.05;}}
-    @keyframes blink       {0%,100%{opacity:1;}50%{opacity:.15;}}
-    @keyframes scan        {0%{top:0;opacity:.5;}50%{top:100%;opacity:.15;}100%{top:0;opacity:.5;}}
-    @keyframes bar-grow    {from{width:0;}}
-    @keyframes fadeIn      {from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
-    @keyframes ticker      {0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+<style>
+body{
+  margin:0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  color:#fff;
+}
 
-    .ring1 {animation:pulse-ring  2.4s ease-in-out infinite;}
-    .ring2 {animation:pulse-ring2 2.4s ease-in-out infinite .5s;}
-    .blink {animation:blink 1.8s ease-in-out infinite;}
-    .bar   {animation:bar-grow 1.2s ease-out forwards;}
-    .fadein{animation:fadeIn .7s ease-out both;}
+/* Glass Container */
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:20px;
+}
 
-    .shell{max-width:1020px;margin:0 auto;border:1px solid #0D2A44;border-radius:12px;overflow:hidden;background:#060A14;}
+/* Header */
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
 
-    /* ticker */
-    .ticker-wrap{background:#030710;border-bottom:1px solid #0A1E30;overflow:hidden;height:22px;display:flex;align-items:center;}
-    .ticker-inner{display:flex;white-space:nowrap;animation:ticker 30s linear infinite;}
-    .ticker-item{font-size:8px;letter-spacing:2px;color:#0D3A5A;padding:0 28px;}
-    .ticker-item span{color:#00C8FF;}
+.title{
+  font-size:32px;
+  font-weight:700;
+  background: linear-gradient(90deg,#00f2ff,#00ff9d);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
 
-    /* header */
-    .hdr{display:flex;align-items:center;gap:20px;padding:22px 28px 18px;border-bottom:1px solid #0D2A44;}
-    .hdr-title{font-size:36px;font-weight:bold;letter-spacing:10px;color:#00D4FF;line-height:1;}
-    .hdr-sub  {font-size:9px;letter-spacing:3px;color:#4A8FAA;margin-top:5px;}
-    .hdr-ver  {font-size:8px;letter-spacing:2px;color:#1A5C7A;margin-top:3px;}
-    .hdr-right{margin-left:auto;text-align:right;}
-    .online-dot{width:7px;height:7px;border-radius:50%;background:#00FF88;display:inline-block;vertical-align:middle;margin-right:5px;}
-    .online-lbl{font-size:9px;letter-spacing:2px;color:#00FF88;vertical-align:middle;}
-    .hdr-tags  {font-size:8px;letter-spacing:1px;color:#1A5C7A;margin-top:6px;}
-    .hdr-time  {font-size:10px;letter-spacing:1px;color:#2A6080;margin-top:4px;}
+.status{
+  padding:6px 14px;
+  border-radius:20px;
+  font-size:13px;
+  backdrop-filter: blur(10px);
+}
 
-    /* section label */
-    .sec-lbl{font-size:8px;letter-spacing:3px;color:#4A8FAA;margin-bottom:12px;text-transform:uppercase;}
+.online{
+  background:rgba(0,255,150,0.15);
+  border:1px solid rgba(0,255,150,0.4);
+  color:#00ffb3;
+}
 
-    /* 2-col */
-    .grid2{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #0D2A44;}
-    .col{padding:20px 24px;}
-    .col-left{border-right:1px solid #0D2A44;position:relative;overflow:hidden;}
-    .scan-line{position:absolute;left:0;right:0;height:1px;background:#00C8FF;opacity:.1;animation:scan 5s ease-in-out infinite;}
+.offline{
+  background:rgba(255,0,0,0.15);
+  border:1px solid rgba(255,0,0,0.4);
+  color:#ff4d4d;
+}
 
-    /* relay cards */
-    .relay-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-    .relay-card{border-radius:6px;padding:10px 12px;}
-    .r-on {background:#071830;border:1px solid #0D3A5A;}
-    .r-off{background:#0D0B14;border:1px solid #160E24;}
-    .r-pin{font-size:8px;letter-spacing:2px;margin-bottom:5px;}
-    .r-pin-on {color:#4A8FAA;}
-    .r-pin-off{color:#201830;}
-    .r-state{font-size:13px;font-weight:bold;letter-spacing:2px;}
-    .r-state-on {color:#00D4FF;}
-    .r-state-off{color:#201030;}
-    .r-track{height:2px;border-radius:1px;margin-top:8px;background:#0D2A44;}
-    .r-fill-on {height:2px;border-radius:1px;background:#00C8FF;}
-    .r-fill-off{height:2px;border-radius:1px;background:#1A0A28;}
+/* Glass Card */
+.card{
+  background:rgba(255,255,255,0.05);
+  backdrop-filter: blur(15px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:16px;
+  padding:20px;
+  margin-bottom:20px;
+  box-shadow:0 0 25px rgba(0,255,255,0.05);
+}
 
-    /* confidence bars */
-    .conf-row{margin-bottom:11px;}
-    .conf-hdr{display:flex;justify-content:space-between;margin-bottom:4px;}
-    .conf-lbl{font-size:9px;letter-spacing:1px;color:#4A8FAA;}
-    .conf-pct{font-size:9px;color:#00D4FF;}
-    .conf-track{height:4px;background:#0D2A44;border-radius:2px;}
-    .conf-fill {height:4px;background:#00C8FF;border-radius:2px;}
-    .conf-footer{border-top:1px solid #0D2A44;margin-top:12px;padding-top:10px;display:flex;justify-content:space-between;align-items:center;}
-    .conf-model{font-size:8px;letter-spacing:1px;color:#1A5C7A;}
-    .badge-active{background:#071830;border:1px solid #00C8FF;border-radius:4px;padding:2px 8px;color:#00D4FF;font-size:8px;letter-spacing:1px;}
+/* Grid */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:15px;
+}
 
-    /* status bar */
-    .statusbar{display:grid;grid-template-columns:1fr 1fr 1fr;border-bottom:1px solid #0D2A44;}
-    .sb-cell{padding:12px 18px;text-align:center;}
-    .sb-cell:not(:last-child){border-right:1px solid #0D2A44;}
-    .sb-lbl{font-size:8px;letter-spacing:2px;color:#4A8FAA;margin-bottom:5px;}
-    .sb-val{font-size:10px;font-weight:bold;letter-spacing:1px;}
-    .v-cyan {color:#00D4FF;}
-    .v-green{color:#00FF88;}
-    .v-amber{color:#EF9F27;}
-    .v-red  {color:#FF4444;}
+/* Switch Card */
+.switch{
+  padding:15px;
+  border-radius:12px;
+  text-align:center;
+  transition:0.3s;
+}
 
-    /* prediction pills */
-    .pred-section{margin:0 24px;padding:16px 0;border-bottom:1px solid #0D2A44;}
-    .pred-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0;}
-    .pred-pill{border-radius:4px;padding:6px 14px;font-size:10px;font-weight:bold;letter-spacing:2px;}
-    .p-on {background:#071830;border:1px solid #00C8FF;color:#00D4FF;}
-    .p-off{background:#0D0B14;border:1px solid #160E24;color:#1A2A3A;}
-    .pred-meta{font-size:8px;letter-spacing:1px;color:#1A5C7A;margin-top:10px;}
+.on{
+  background:rgba(0,255,200,0.1);
+  border:1px solid rgba(0,255,200,0.4);
+  box-shadow:0 0 10px rgba(0,255,200,0.4);
+  color:#00ffd5;
+}
 
-    /* actions */
-    .actions{padding:14px 24px;display:flex;gap:10px;align-items:center;border-bottom:1px solid #0D2A44;flex-wrap:wrap;}
-    .btn{background:#071830;border:1px solid #0D3A5A;color:#4A8FAA;font-family:'Courier New',monospace;font-size:9px;letter-spacing:2px;padding:7px 16px;border-radius:4px;cursor:pointer;transition:all .15s;text-decoration:none;display:inline-block;}
-    .btn:hover{border-color:#00C8FF;color:#00D4FF;background:#0D2040;}
-    .btn-primary{border-color:#00C8FF;color:#00D4FF;}
-    .btn-primary:hover{background:#0D2A44;}
-    .auto-lbl{font-size:8px;letter-spacing:1px;color:#1A3A4A;margin-left:4px;}
+.off{
+  background:rgba(255,255,255,0.05);
+  color:#aaa;
+}
 
-    /* log table */
-    .log-wrap{padding:16px 24px 20px;}
-    .log-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-    .log-count{font-size:8px;letter-spacing:1px;color:#1A5C7A;}
-    table{width:100%;border-collapse:collapse;font-size:10px;}
-    thead tr{border-bottom:1px solid #0D3A5A;}
-    th{color:#4A8FAA;padding:6px 10px;text-align:left;letter-spacing:1px;font-weight:normal;font-size:8px;}
-    tbody tr{border-bottom:1px solid #080E18;transition:background .1s;}
-    tbody tr:hover{background:#071222;}
-    td{padding:8px 10px;}
-    .td-time{color:#2A6080;font-size:9px;}
-    .td-sess{color:#1A4050;font-size:9px;}
-    .td-src {color:#1A3A4A;font-size:9px;}
-    .td-on  {color:#00D4FF;font-weight:bold;}
-    .td-off {color:#1A2030;}
-    .tbl-badge{border-radius:3px;padding:2px 7px;font-size:8px;letter-spacing:1px;}
-    .tb-ok  {background:#071830;border:1px solid #0D3A5A;color:#00C8FF;}
-    .tb-warn{background:#1A0E00;border:1px solid #3A2500;color:#EF9F27;}
-    .tb-err {background:#1A0000;border:1px solid #3A0000;color:#FF4444;}
+/* Progress Bar */
+.bar{
+  height:6px;
+  background:rgba(255,255,255,0.1);
+  border-radius:5px;
+  margin-top:10px;
+}
 
-    /* footer */
-    .footer{padding:10px 24px 14px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
-    .footer-left{font-size:8px;letter-spacing:2px;color:#1A3A4A;}
-    .footer-right{display:flex;gap:14px;}
-    .footer-tag{font-size:8px;letter-spacing:1px;color:#0D2030;}
+.fill{
+  height:6px;
+  background:linear-gradient(90deg,#00f2ff,#00ff9d);
+  border-radius:5px;
+}
 
-    @media(max-width:640px){
-      .grid2{grid-template-columns:1fr;}
-      .col-left{border-right:none;border-bottom:1px solid #0D2A44;}
-      .statusbar{grid-template-columns:1fr;}
-      .sb-cell:not(:last-child){border-right:none;border-bottom:1px solid #0D2A44;}
-    }
-  </style>
+/* Buttons */
+.btn{
+  padding:10px 18px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:linear-gradient(90deg,#00f2ff,#00ff9d);
+  color:#000;
+  font-weight:bold;
+  margin-right:10px;
+  text-decoration:none;
+  display:inline-block;
+}
+
+.btn:hover{
+  opacity:0.8;
+}
+
+/* Table */
+.table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.table th,.table td{
+  padding:10px;
+  text-align:center;
+  border-bottom:1px solid rgba(255,255,255,0.1);
+}
+
+.green{color:#00ffb3;}
+.red{color:#ff4d4d;}
+
+@media(max-width:600px){
+  .grid{grid-template-columns:1fr;}
+}
+</style>
 </head>
+
 <body>
-<div class="shell fadein">
+<div class="container">
 
-  <!-- TICKER -->
-  <div class="ticker-wrap">
-    <div class="ticker-inner">
-      <span class="ticker-item">OLAS v1.0 &nbsp;·&nbsp; ML-IoT &nbsp;·&nbsp; 2026</span>
-      <span class="ticker-item">RANDOM FOREST &nbsp;·&nbsp; <span>200 TREES</span> &nbsp;·&nbsp; <span>~95.5% ACCURACY</span></span>
-      <span class="ticker-item">ESP32 &nbsp;·&nbsp; 4-CHANNEL RELAY &nbsp;·&nbsp; GPIO 23 · 19 · 18 · 26</span>
-      <span class="ticker-item">SESSIONS: <span>9:15–11:15</span> &nbsp;·&nbsp; <span>11:30–13:30</span> &nbsp;·&nbsp; <span>14:15–16:15</span></span>
-      <span class="ticker-item">SCHEDULER FIRES EVERY <span>30 MIN</span> &nbsp;·&nbsp; RENDER.COM FREE TIER</span>
-      <span class="ticker-item">OLAS v1.0 &nbsp;·&nbsp; ML-IoT &nbsp;·&nbsp; 2026</span>
-      <span class="ticker-item">RANDOM FOREST &nbsp;·&nbsp; <span>200 TREES</span> &nbsp;·&nbsp; <span>~95.5% ACCURACY</span></span>
-      <span class="ticker-item">ESP32 &nbsp;·&nbsp; 4-CHANNEL RELAY &nbsp;·&nbsp; GPIO 23 · 19 · 18 · 26</span>
-    </div>
-  </div>
-
-  <!-- HEADER -->
-  <div class="hdr">
-    <svg width="76" height="76" viewBox="0 0 80 80">
-      <circle cx="40" cy="40" r="56" fill="none" stroke="#00C8FF" stroke-width="0.3" opacity="0.08" class="ring2"/>
-      <circle cx="40" cy="40" r="48" fill="none" stroke="#00C8FF" stroke-width="0.6" opacity="0.3"  class="ring1"/>
-      <circle cx="40" cy="40" r="34" fill="#060D1C" stroke="#00C8FF" stroke-width="1.2"/>
-      <circle cx="40" cy="40" r="26" fill="#071222" stroke="#00A0CC" stroke-width="0.5"/>
-      <polygon points="40,18 56,28 56,52 40,62 24,52 24,28" fill="none" stroke="#00C8FF" stroke-width="0.8" opacity="0.55"/>
-      <polygon points="40,24 51,30.5 51,49.5 40,56 29,49.5 29,30.5" fill="#00C8FF" opacity="0.05"/>
-      <text x="40" y="46" text-anchor="middle" dominant-baseline="central"
-            fill="#00D4FF" font-size="15" font-weight="bold"
-            font-family="Courier New" letter-spacing="1">O</text>
-    </svg>
-    <div>
-      <div class="hdr-title">OLAS</div>
-      <div class="hdr-sub">OPTIMISED LAB AUTOMATION SYSTEM</div>
-      <div class="hdr-ver">ML-IoT Integration &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; v1.0</div>
-    </div>
-    <div class="hdr-right">
-      {% if logs %}
-      <div>
-        <span class="online-dot blink"></span>
-        <span class="online-lbl">SYSTEM ONLINE</span>
-      </div>
-      {% else %}
-      <div>
-        <span class="online-dot blink" style="background:#EF9F27;"></span>
-        <span class="online-lbl" style="color:#EF9F27;">AWAITING DATA</span>
-      </div>
-      {% endif %}
-      <div class="hdr-tags">ESP32 &nbsp;·&nbsp; RAINMAKER &nbsp;·&nbsp; RENDER.COM</div>
-    </div>
-  </div>
-
+<div class="header">
+  <div class="title">OLAS ⚡</div>
   {% if logs %}
-  {% set last = logs[0] %}
-
-  <!-- RELAY + ML GRID -->
-  <div class="grid2">
-
-    <!-- Left: relay status -->
-    <div class="col col-left">
-      <div class="scan-line"></div>
-      <div class="sec-lbl">Relay status</div>
-      <div class="relay-grid">
-        {% set sw_gpio = [
-          ('Switch1','GPIO 23'),('Switch2','GPIO 19'),
-          ('Switch3','GPIO 18'),('Switch4','GPIO 26')
-        ] %}
-        {% for sw, gpio in sw_gpio %}
-        {% set on = last.predictions[sw].state %}
-        {% set w  = (last.predictions[sw].confidence * 100)|int %}
-        <div class="relay-card {{ 'r-on' if on else 'r-off' }}">
-          <div class="r-pin {{ 'r-pin-on' if on else 'r-pin-off' }}">
-            {{ sw.upper() }} &nbsp;·&nbsp; {{ gpio }}
-          </div>
-          <div class="r-state {{ 'r-state-on' if on else 'r-state-off' }}">
-            {{ 'ACTIVE' if on else 'STANDBY' }}
-          </div>
-          <div class="r-track">
-            <div class="bar {{ 'r-fill-on' if on else 'r-fill-off' }}" style="width:{{ w }}%"></div>
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-
-    <!-- Right: ML confidence -->
-    <div class="col">
-      <div class="sec-lbl">ML Prediction Engine</div>
-      {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
-      {% set pct = (last.predictions[sw].confidence * 100)|round(1) %}
-      <div class="conf-row">
-        <div class="conf-hdr">
-          <span class="conf-lbl">{{ sw }} confidence</span>
-          <span class="conf-pct">{{ pct }}%</span>
-        </div>
-        <div class="conf-track">
-          <div class="bar conf-fill" style="width:{{ pct }}%"></div>
-        </div>
-      </div>
-      {% endfor %}
-      <div class="conf-footer">
-        <span class="conf-model">MODEL: RANDOM FOREST &nbsp;·&nbsp; 200 TREES</span>
-        <span class="badge-active">ACTIVE</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- STATUS BAR -->
-  <div class="statusbar">
-    <div class="sb-cell">
-      <div class="sb-lbl">Session</div>
-      <div class="sb-val v-cyan">{{ last.session[:26] }}</div>
-    </div>
-    <div class="sb-cell">
-      <div class="sb-lbl">Last run</div>
-      <div class="sb-val v-green">{{ last.timestamp[11:] }} &nbsp;·&nbsp; {{ last.source }}</div>
-    </div>
-    <div class="sb-cell">
-      <div class="sb-lbl">API Status</div>
-      {% if last.api_status == 'ok' %}
-        <div class="sb-val v-green">RAINMAKER &nbsp;·&nbsp; 200 OK</div>
-      {% elif 'not_set' in last.api_status or 'credentials' in last.api_status %}
-        <div class="sb-val v-amber">CREDENTIALS NOT SET</div>
-      {% else %}
-        <div class="sb-val v-red">{{ last.api_status|upper }}</div>
-      {% endif %}
-    </div>
-  </div>
-
-  <!-- PREDICTION PILLS -->
-  <div class="pred-section">
-    <div class="sec-lbl">Last prediction</div>
-    <div class="pred-row">
-      {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
-      {% set on  = last.predictions[sw].state %}
-      {% set pct = (last.predictions[sw].confidence * 100)|int %}
-      <div class="pred-pill {{ 'p-on' if on else 'p-off' }}">
-        {{ sw[-1] }} &nbsp; {{ 'ON' if on else 'OFF' }} &nbsp; {{ pct }}%
-      </div>
-      {% endfor %}
-    </div>
-    <div class="pred-meta">
-      {{ last.timestamp }} &nbsp;·&nbsp; {{ last.session }} &nbsp;·&nbsp; source: {{ last.source }}
-    </div>
-  </div>
-
+    <div class="status online">ONLINE</div>
+  {% else %}
+    <div class="status offline">NO DATA</div>
   {% endif %}
+</div>
 
-  <!-- ACTIONS -->
-  <div class="actions">
-    <a href="/trigger" class="btn btn-primary">[ FORCE PREDICTION ]</a>
-    <a href="/status"  class="btn">[ JSON STATUS ]</a>
-    <a href="/predict_time/9/30/0"   class="btn">[ TEST 9:30 MON ]</a>
-    <a href="/predict_time/14/15/2"  class="btn">[ TEST 14:15 WED ]</a>
-    <span class="auto-lbl">AUTO-REFRESH &nbsp;60s</span>
-  </div>
+{% if logs %}
+{% set last = logs[0] %}
 
-  <!-- LOG TABLE -->
-  <div class="log-wrap">
-    <div class="log-hdr">
-      <div class="sec-lbl" style="margin:0">Prediction log</div>
-      <div class="log-count">{{ logs|length }} entries</div>
+<div class="card">
+  <h3>⚡ Switch Control</h3>
+  <div class="grid">
+    {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
+    {% set on = last.predictions[sw].state %}
+    {% set pct = (last.predictions[sw].confidence * 100)|int %}
+    <div class="switch {{ 'on' if on else 'off' }}">
+      <h4>{{ sw }}</h4>
+      {{ 'ON' if on else 'OFF' }}
+      <div class="bar">
+        <div class="fill" style="width:{{ pct }}%"></div>
+      </div>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Session</th>
-          <th>S1</th><th>S2</th><th>S3</th><th>S4</th>
-          <th>Source</th>
-          <th>API</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for entry in logs %}
-        <tr>
-          <td class="td-time">{{ entry.timestamp }}</td>
-          <td class="td-sess">{{ entry.session[:22] }}</td>
-          {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
-          <td class="{{ 'td-on' if entry.predictions[sw].state else 'td-off' }}">
-            {{ 'ON' if entry.predictions[sw].state else 'OFF' }}
-          </td>
-          {% endfor %}
-          <td class="td-src">{{ entry.source }}</td>
-          <td>
-            {% if entry.api_status == 'ok' %}
-              <span class="tbl-badge tb-ok">200 OK</span>
-            {% elif 'credentials' in entry.api_status or 'not_set' in entry.api_status %}
-              <span class="tbl-badge tb-warn">NO CREDS</span>
-            {% elif 'error' in entry.api_status %}
-              <span class="tbl-badge tb-err">{{ entry.api_status|upper }}</span>
-            {% else %}
-              <span class="tbl-badge tb-warn">{{ entry.api_status|upper }}</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    {% endfor %}
   </div>
+</div>
 
-  <!-- FOOTER -->
-  <div class="footer">
-    <div class="footer-left">OLAS &nbsp;·&nbsp; ML-IoT Mini Project &nbsp;·&nbsp; 2026</div>
-    <div class="footer-right">
-      <span class="footer-tag">ESP32</span>
-      <span class="footer-tag">RAINMAKER</span>
-      <span class="footer-tag">GOOGLE HOME</span>
-      <span class="footer-tag">RENDER.COM</span>
-      <span class="footer-tag">RANDOM FOREST</span>
-    </div>
-  </div>
+<div class="card">
+  <h3>🧠 System Info</h3>
+  <p><b>Session:</b> {{ last.session }}</p>
+  <p><b>Last Run:</b> {{ last.timestamp }}</p>
+  <p><b>API:</b>
+    {% if last.api_status == 'ok' %}
+      <span class="green">Connected</span>
+    {% else %}
+      <span class="red">{{ last.api_status }}</span>
+    {% endif %}
+  </p>
+</div>
+
+{% endif %}
+
+<div class="card">
+  <h3>🚀 Actions</h3>
+  <a href="/trigger" class="btn">Run</a>
+  <a href="/status" class="btn">Status</a>
+</div>
+
+<div class="card">
+  <h3>📊 Logs</h3>
+  <table class="table">
+    <tr>
+      <th>Time</th>
+      <th>S1</th><th>S2</th><th>S3</th><th>S4</th>
+      <th>API</th>
+    </tr>
+
+    {% for entry in logs %}
+    <tr>
+      <td>{{ entry.timestamp }}</td>
+
+      {% for sw in ['Switch1','Switch2','Switch3','Switch4'] %}
+      <td class="{{ 'green' if entry.predictions[sw].state else 'red' }}">
+        {{ 'ON' if entry.predictions[sw].state else 'OFF' }}
+      </td>
+      {% endfor %}
+
+      <td>{{ entry.api_status }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
 
 </div>
 </body>
